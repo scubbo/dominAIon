@@ -7,46 +7,64 @@ class RandomStrategy:
   # actions (a true RNN strategy wouldn't do so,
   # but only because it would learn to avoid
   # illegal actions over time)
-  def __init__(self, cards):
+  def __init__(self, cards, player_number):
     self.cards = cards
+    self.player_number = player_number
 
-  def determine_action(self, gamestate):
-    if gamestate.phase == 'action_1':
+  def determine_action(self, gamestate_as_vector, number_of_cards):
+    gamestate = self.parse_gamestate(gamestate_as_vector, number_of_cards)
+    if gamestate['phase'] == 0:
       if random.random() < 0.8:
         actions_remaining = self._determine_actions_remaining(gamestate)
-        actions_in_hand = [index for index in gamestate.hand_1 if self.cards[index]['type'] == 'action']
+        actions_in_hand = [index for index in gamestate['hand_1'] if self.cards[index]['type'] == 'action']
         if actions_remaining > 0 and actions_in_hand:
           return ('play_action', [random.choice(actions_in_hand)])
 
-    if gamestate.phase == 'buy_1':
+    if gamestate['phase'] == 1:
       if random.random() < 0.9:
         # It will rarely be suboptimal for this strategy to play all treasures, given that there's nothing
         # in the first sets of cards that I'll be adding which require treasure in-hand at the point of buying
-        treasure_in_hand = [index for index in gamestate.hand_1 if self.cards[index]['type'] == 'treasure']
+        treasure_in_hand = [index for index in gamestate['hand_1'] if self.cards[index]['type'] == 'treasure']
         if treasure_in_hand:
           return ('play_treasure', [random.choice(treasure_in_hand)])
 
-        # There is no notion of "buys remaining" given this degree of information,
-        # since gamestate doesn't encode "number of buys used this phase".
-        # Maybe that needs to change.
-        #
-        # As it stands, we'll simply return a desired action,
-        # and Gamemaster can handle determining if it's illegal
-        # (which is something it will need to be able to do *anyway*,
-        # for when we move to RNN-based strategies)
-        coins = self._determine_coins_available(gamestate)
-        print('coins is ' + str(coins))
-        buy_targets = self._pick_affordable_buy_targets(coins, gamestate)
-        print('buy_targets is ' + str(buy_targets))
-        if buy_targets:
-          return ('buy_card', [random.choice(buy_targets)])
+        buys_remaining = self._determine_buys_remaining(gamestate)
+        if buys_remaining > 0:
+          coins = self._determine_coins_available(gamestate)
+          buy_targets = self._pick_affordable_buy_targets(coins, gamestate)
+          if buy_targets:
+            return ('buy_card', [random.choice(buy_targets)])
 
     return ('end_phase', [])
 
+  # TODO - arguably, this could belong in gamestate,
+  # but ideally nothing else but RandomStrategy should
+  # ever be using this (because RNN-strats should just be
+  # operating on the bare vector)
+  def parse_gamestate(self, vector, number):
+    returnObj = {}
+    returnObj['supply'] = vector[:number]
+    returnObj['hand_1'] = self._unvectorize(vector[number:number*2])
+    returnObj['play_1'] = self._unvectorize(vector[number*2:number*3])
+    returnObj['bought_so_far_this_turn'] = self._unvectorize(vector[-(number+1):-1])
+    returnObj['phase'] = vector[-1]
+    return returnObj
+
+  # Reads a vector of length equal to number of cards,
+  # wherein the i-th value is how many of the i-th card
+  # are in the subset,
+  # and outputs a vector representing the subset
+  #
+  # e.g. [0, 3, 1, 2, 0, 0, 1, 0, 1, 0, ...] => [1,2,1,6,8,3,1,3]
+  def _unvectorize(self, vector):
+    response = []
+    for index in range(len(vector)):
+      response += [index]*vector[index]
+    return response
 
   def _determine_actions_remaining(self, gamestate):
     remaining = 1
-    for action_played_index in gamestate.play_1:
+    for action_played_index in gamestate['play_1']:
       card = self.cards[action_played_index]
       # This should only be called in the action
       # phase, so every card played *should* only be
@@ -58,9 +76,17 @@ class RandomStrategy:
           remaining += card['action']['actions']
     return remaining
 
+  def _determine_buys_remaining(self, gamestate):
+    remaining = 1
+    for card_played_index in gamestate['play_1']:
+      card = self.cards[card_played_index]
+      if card['type'] == 'action' and 'buys' in card['action']:
+        remaining += card['action']['buys']
+    return remaining - len(gamestate['bought_so_far_this_turn'])
+
   def _determine_coins_available(self, gamestate):
     available = 0
-    for index_played in gamestate.play_1:
+    for index_played in gamestate['play_1']:
       card = self.cards[index_played]
       if card['type'] == 'treasure':
         available += card['value']
@@ -70,4 +96,4 @@ class RandomStrategy:
     return available
 
   def _pick_affordable_buy_targets(self, coins, gamestate):
-    return [index for index in range(len(gamestate.supply)) if gamestate.supply[index] > 0 and self.cards[index]['cost'] < coins]
+    return [index for index in range(len(gamestate['supply'])) if gamestate['supply'][index] > 0 and self.cards[index]['cost'] < coins]

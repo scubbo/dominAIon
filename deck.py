@@ -14,4 +14,4 @@ class Deck:
 
   def contents(self):
     # Note that this does *not* represent the actual order of the deck!
-    return sorted_cards
+    return self.sorted_cards

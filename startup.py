@@ -6,7 +6,7 @@ GM = Gamemaster(cards)
 import sys
 sys.path.append('strategies')
 from randomStrategy import RandomStrategy
-strat = RandomStrategy(cards)
+strat = RandomStrategy(cards, 1)
 
 def what():
   return strat.determine_action(GM.gamestate)
@@ -17,3 +17,6 @@ def ok():
 def skip():
   while GM.gamestate.phase != 'action_1':
     GM.end_phase()
+
+def state():
+  print(GM.gamestate)

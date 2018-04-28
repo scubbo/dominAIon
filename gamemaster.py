@@ -28,6 +28,7 @@ class Gamemaster:
 
   def play_action(self, index):
     self._check_for_phase('action_1')
+    # TODO: Check for legality of playing an action
 
     card = self.cards[index]
     if card['type'] != 'action':
@@ -37,6 +38,13 @@ class Gamemaster:
       self.gamestate.play_card(index)
     except ValueError:
       raise ValueError('No ' + card['name'] + ' in hand!')
+
+    # OK, we've physically moved the card into the play area - now to execute
+    # whatever the card told us to do.
+    # Right now, the only thing that is supported is drawing cards
+    if 'cards' in card['action']:
+      for i in range(card['action']['cards']):
+        self.gamestate.player_1_draw()
 
   def play_treasure(self, index):
     self._check_for_phase('buy_1')
@@ -50,15 +58,12 @@ class Gamemaster:
     except ValueError:
       raise ValueError('No ' + card['name'] + ' in hand!')
 
-  #TODO - should bought_so_far be in Gamestate?
-  #Probably not - try to make it *just* about presence/absence/count of cards
-  #(By which logic, keeping cost calculation here is correct)
-  def buy_card(self, index, bought_so_far):
+  def buy_card(self, index):
     self._check_for_phase('buy_1')
 
-    card = self.cards[index]
-    cost = card['cost']
-    total_cost = sum([self.cards[index]['cost'] for index in bought_so_far+[index]])
+    self._check_legal_to_buy_card()
+
+    total_cost = sum([self.cards[index]['cost'] for index in self.gamestate.bought_so_far_this_turn+[index]])
     total_coins = self._get_total_coins()
     if total_cost > total_coins:
       raise ValueError('Cannot afford that!')
@@ -111,6 +116,13 @@ class Gamemaster:
   def _check_for_phase(self, phase):
     if self.gamestate.phase != phase:
       raise ValueError('Now is not the time to use that')
+
+  def _check_legal_to_buy_card(self):
+    cards_played = [self.cards[index] for index in self.gamestate.play_1]
+    extra_buys = sum([card['action']['buys'] for card in cards_played if card['type'] == 'action' and 'buys' in card['action']])
+    if extra_buys < len(self.gamestate.bought_so_far_this_turn): # strict equality because you always start with one buy
+      raise ValueError("Trying to buy too many cards in one turn")
+
 
   def _get_total_coins(self):
     total_coins = 0
