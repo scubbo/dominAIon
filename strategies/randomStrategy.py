@@ -13,6 +13,7 @@ class RandomStrategy:
 
   def determine_action(self, gamestate_as_vector, number_of_cards):
     gamestate = self.parse_gamestate(gamestate_as_vector, number_of_cards)
+    print('Strategy_1\'s parsed gamestate view is ' + str(gamestate))
     if gamestate['phase'] == 0:
       if random.random() < 0.8:
         actions_remaining = self._determine_actions_remaining(gamestate)
@@ -31,7 +32,11 @@ class RandomStrategy:
         buys_remaining = self._determine_buys_remaining(gamestate)
         if buys_remaining > 0:
           coins = self._determine_coins_available(gamestate)
-          buy_targets = self._pick_affordable_buy_targets(coins, gamestate)
+          print('DEBUG - coins is ' + str(coins))
+          spent_so_far_this_turn = self._determine_spent_so_far_this_turn(gamestate)
+          print('DEBUG - spent so far this round is ' + str(spent_so_far_this_turn))
+          buy_targets = self._pick_affordable_buy_targets(coins-spent_so_far_this_turn, gamestate)
+          print('DEBUG - buy_targets is ' + str(buy_targets))
           if buy_targets:
             return ('buy_card', [random.choice(buy_targets)])
 
@@ -44,8 +49,9 @@ class RandomStrategy:
   def parse_gamestate(self, vector, number):
     returnObj = {}
     returnObj['supply'] = vector[:number]
-    returnObj['hand_1'] = self._unvectorize(vector[number:number*2])
-    returnObj['play_1'] = self._unvectorize(vector[number*2:number*3])
+    returnObj['deck_1'] = self._unvectorize(vector[number:number*2])
+    returnObj['hand_1'] = self._unvectorize(vector[number*2:number*3])
+    returnObj['play_1'] = self._unvectorize(vector[number*3:number*4])
     returnObj['bought_so_far_this_turn'] = self._unvectorize(vector[-(number+1):-1])
     returnObj['phase'] = vector[-1]
     return returnObj
@@ -95,5 +101,8 @@ class RandomStrategy:
         available += card['action']['coins']
     return available
 
+  def _determine_spent_so_far_this_turn(self, gamestate):
+    return sum(self.cards[index]['cost'] for index in gamestate['bought_so_far_this_turn'])
+
   def _pick_affordable_buy_targets(self, coins, gamestate):
-    return [index for index in range(len(gamestate['supply'])) if gamestate['supply'][index] > 0 and self.cards[index]['cost'] < coins]
+    return [index for index in range(len(gamestate['supply'])) if gamestate['supply'][index] > 0 and self.cards[index]['cost'] <= coins]

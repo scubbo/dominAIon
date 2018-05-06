@@ -14,7 +14,7 @@ class Gamestate:
       phase,
       bought_so_far_this_turn):
     self.supply = supply
-    self.deck_1 = deck_1 # TODO - bot should not have knowledge of the order of decks!
+    self.deck_1 = deck_1
     self.hand_1 = hand_1
     self.play_1 = play_1
     self.discard_1 = discard_1
@@ -27,52 +27,47 @@ class Gamestate:
     self.bought_so_far_this_turn = bought_so_far_this_turn
 
   def __str__(self):
-    return 'Supply: ' + str(self.supply) + '\nDeck: ' + str(self.deck_1.cards[:5]) + "...\nHand: " + str(self.hand_1) + "\nPlay: " + str(self.play_1) + '\nDiscard: ' + str(self.discard_1) + '\nPhase: ' + str(self.phase)
+    return '\n'.join([
+      'Supply: ' + str(self.supply),
+      'Deck 1: ' + str(self.deck_1.cards[:5]) + '...',
+      'Hand 1: ' + str(self.hand_1),
+      'Play 1: ' + str(self.play_1),
+      'Discard 1: ' + str(self.discard_1),
+      'Deck 2: ' + str(self.deck_2.cards[:5]) + '...',
+      'Hand 2: ' + str(self.hand_2),
+      'Play 2: ' + str(self.play_2),
+      'Discard 2: ' + str(self.discard_2),
+      'Phase: ' + str(self.phase)
+    ])
 
   def to_json(self):
     return dumps(self.__dict__, cls=GamestateEncoder)
 
-  def player_1_draw(self):
-    # Todo - messaging
+  def player_draw(self, player_number):
     try:
-      self.hand_1.append(self.deck_1.draw_card())
+      getattr(self, 'hand_'+str(player_number)).append(getattr(self, 'deck_'+str(player_number)).draw_card())
       return self
     except IndexError:
       # Tried to pop from an empty list - that is, draw from an empty deck
-      self.deck_1 = Deck(self.discard_1)
-      self.discard_1 = []
-      return self.player_1_draw()
+      setattr(self, 'deck_'+str(player_number), Deck(getattr(self, 'discard_'+str(player_number))))
+      setattr(self, 'discard_'+str(player_number), [])
+      return self.player_draw(player_number)
 
-  def player_2_draw(self):
-    try:
-      self.hand_2.append(self.deck_2.draw_card())
-      return self
-    except IndexError:
-      # Tried to pop from an empty list - that is, draw from an empty deck
-      self.deck_2 = Deck(self.discard_2)
-      self.discard_2 = []
-      return self.player_2_draw()
-
-  def player_1_draw_hand(self):
+  def player_draw_hand(self, player_number):
     for i in range(5):
-      self.player_1_draw()
+      self.player_draw(player_number)
     return self
 
-  def player_2_draw_hand(self):
-    for i in range(5):
-      self.player_2_draw()
-    return self
-
-  def play_card(self, index):
+  def play_card(self, player_number, index):
     # Note - this *is* atomic, since removal is the only thing that can fail
-    self.hand_1.remove(index)
-    self.play_1.append(index)
+    getattr(self, 'hand_' + str(player_number)).remove(index)
+    getattr(self, 'play_' + str(player_number)).append(index)
     return self
 
-  def buy_card(self, index):
+  def buy_card(self, player_number, index):
     if self.supply[index] > 0:
       self.supply[index] -= 1
-      self.discard_1.append(index)
+      getattr(self, 'discard_' + str(player_number)).append(index)
       self.bought_so_far_this_turn.append(index)
     else:
       raise ValueError
@@ -83,18 +78,18 @@ class Gamestate:
     except IndexError:
       return phase_order[0]
 
-  def cleanup_1(self):
+  def cleanup(self, player_number):
     while (True):
       try:
-        self.discard_1.append(self.play_1.pop())
+        getattr(self, 'discard_'+str(player_number)).append(getattr(self, 'play_'+str(player_number)).pop())
       except IndexError:
         break
     while (True):
       try:
-        self.discard_1.append(self.hand_1.pop())
+        getattr(self, 'discard_'+str(player_number)).append(getattr(self, 'hand_'+str(player_number)).pop())
       except IndexError:
         break
-    self.player_1_draw_hand()
+    self.player_draw_hand(player_number)
     self.bought_so_far_this_turn = []
 
   # This should probably be a "static" method,
@@ -149,7 +144,8 @@ class Gamestate:
 
 def create_initial_gamestate(supply, deck_1, deck_2):
   initial_gamestate = Gamestate(supply, deck_1, [], [], [], deck_2, [], [], [], [], phase_order[0], [])
-  initial_gamestate.player_1_draw_hand()
+  initial_gamestate.player_draw_hand(1)
+  initial_gamestate.player_draw_hand(2)
   return initial_gamestate
 
 # https://stackoverflow.com/a/3768975/1040915

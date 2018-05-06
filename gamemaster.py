@@ -12,22 +12,17 @@ class Gamemaster:
         estate_index = index
 
     self.gamestate = self.build_initial_gamestate(copper_index, estate_index)
-    print('Your hand is ' + self.pretty_print_hand() + ' and you are in the ' + self.gamestate.phase + ' phase.')
 
   def build_initial_gamestate(self, copper_index, estate_index):
     supply = self._make_supply()
     deck_1, deck_2 = self._make_decks(copper_index, estate_index)
     return gamestate.create_initial_gamestate(supply, deck_1, deck_2)
 
-  # TODO: parameterization
-  def get_hand_1(self):
-    return self.gamestate.hand_1
-
   def pretty_print_hand(self):
     return ','.join([self.cards[i]['name'] for i in self.gamestate.hand_1])
 
-  def play_action(self, index):
-    self._check_for_phase('action_1')
+  def play_action(self, player_number, index):
+    self._check_for_phase('action_' + str(player_number))
     # TODO: Check for legality of playing an action
 
     card = self.cards[index]
@@ -35,7 +30,7 @@ class Gamemaster:
       raise ValueError(card['name'] + ' is not an action!')
 
     try:
-      self.gamestate.play_card(index)
+      self.gamestate.play_card(player_number, index)
     except ValueError:
       raise ValueError('No ' + card['name'] + ' in hand!')
 
@@ -44,32 +39,32 @@ class Gamemaster:
     # Right now, the only thing that is supported is drawing cards
     if 'cards' in card['action']:
       for i in range(card['action']['cards']):
-        self.gamestate.player_1_draw()
+        self.gamestate.player_draw(player_number)
 
-  def play_treasure(self, index):
-    self._check_for_phase('buy_1')
+  def play_treasure(self, player_number, index):
+    self._check_for_phase('buy_'+str(player_number))
 
     card = self.cards[index]
     if card['type'] != 'treasure':
       raise ValueError(card['name'] + ' is not a treasure!')
 
     try:
-      self.gamestate.play_card(index)
+      self.gamestate.play_card(player_number, index)
     except ValueError:
       raise ValueError('No ' + card['name'] + ' in hand!')
 
-  def buy_card(self, index):
-    self._check_for_phase('buy_1')
+  def buy_card(self, player_number, index):
+    self._check_for_phase('buy_'+str(player_number))
 
-    self._check_legal_to_buy_card()
+    self._check_legal_to_buy_card(player_number)
 
     total_cost = sum([self.cards[index]['cost'] for index in self.gamestate.bought_so_far_this_turn+[index]])
-    total_coins = self._get_total_coins()
+    total_coins = self._get_total_coins(player_number)
     if total_cost > total_coins:
       raise ValueError('Cannot afford that!')
 
     try:
-      self.gamestate.buy_card(index)
+      self.gamestate.buy_card(player_number, index)
     except ValueError:
       raise ValueError('No ' + card['name'] + ' left in supply!')
 
@@ -80,11 +75,16 @@ class Gamemaster:
     self.gamestate.phase = next_phase
     if verbose:
       print('You just ended the ' + current_phase + ' phase and are now in the ' + next_phase + ' phase')
-    if self.gamestate.phase == 'cleanup_1':
+    if self.gamestate.phase.startswith('cleanup'):
       # TODO - for cards that trigger on discarding, this will need to execute some logic
-      self.gamestate.cleanup_1()
+      self.gamestate.cleanup(int(self.gamestate.phase[-1]))
       if verbose:
         print('Cleaned up')
+
+  def determine_scores(self):
+    player_1_score = sum([self.cards[index]['points'] if self.cards[index]['type'] == 'victory' else 0 for index in self.gamestate.deck_1.contents()+self.gamestate.hand_1+self.gamestate.discard_1])
+    player_2_score = sum([self.cards[index]['points'] if self.cards[index]['type'] == 'victory' else 0 for index in self.gamestate.deck_2.contents()+self.gamestate.hand_2+self.gamestate.discard_2])
+    return player_1_score, player_2_score
 
   def _make_supply(self, number_of_players=2):
     supply = []
@@ -117,16 +117,16 @@ class Gamemaster:
     if self.gamestate.phase != phase:
       raise ValueError('Now is not the time to use that')
 
-  def _check_legal_to_buy_card(self):
-    cards_played = [self.cards[index] for index in self.gamestate.play_1]
+  def _check_legal_to_buy_card(self, player_number):
+    cards_played = [self.cards[index] for index in getattr(self.gamestate, 'play_'+str(player_number))]
     extra_buys = sum([card['action']['buys'] for card in cards_played if card['type'] == 'action' and 'buys' in card['action']])
     if extra_buys < len(self.gamestate.bought_so_far_this_turn): # strict equality because you always start with one buy
       raise ValueError("Trying to buy too many cards in one turn")
 
 
-  def _get_total_coins(self):
+  def _get_total_coins(self, player_number):
     total_coins = 0
-    for index in self.gamestate.play_1:
+    for index in getattr(self.gamestate, 'play_'+str(player_number)):
       card = self.cards[index]
       if card['type'] == 'treasure':
         total_coins += card['value']

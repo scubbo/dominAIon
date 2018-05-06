@@ -1,3 +1,7 @@
+# TODO - probably don't need this - gameRunner.py can just
+# instantiate two Strategies directly?
+# Keeping it around, though, because the vectorization will
+# be needed for RNN strategies!
 class Interpreter:
   def __init__(self, strategy, cards, gamestate):
     self.strategy = strategy
@@ -7,7 +11,7 @@ class Interpreter:
 
   def take_action(self):
     vectorized_state = self._vectorize_state()
-    # action = strategy.[...]
+    action = self.strategy.determine_action(self.gamestate)
 
   # Returns a vector of length 9n+2 (where n is the number of cards),
   # encoding the state known to player 1
