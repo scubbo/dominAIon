@@ -1,6 +1,10 @@
 import gamestate
 from deck import Deck
 
+# Return value from most methods from Gamemaster
+# is the new situation that the game is now in
+# after execution.
+
 class Gamemaster:
   def __init__(self, cards):
     self.cards = cards
@@ -21,9 +25,9 @@ class Gamemaster:
   def pretty_print_hand(self):
     return ','.join([self.cards[i]['name'] for i in self.gamestate.hand_1])
 
-  def play_action(self, player_number, index):
-    self._check_for_phase('action_' + str(player_number))
-    # TODO: Check for legality of playing an action
+  def play_action(self, player_number, situation, index):
+    if situation != 0:
+      raise ValueError('Tried playing an action outside the Action Phase')
 
     card = self.cards[index]
     if card['type'] != 'action':
@@ -40,9 +44,11 @@ class Gamemaster:
     if 'cards' in card['action']:
       for i in range(card['action']['cards']):
         self.gamestate.player_draw(player_number)
+    return situation #Same situation
 
-  def play_treasure(self, player_number, index):
-    self._check_for_phase('buy_'+str(player_number))
+  def play_treasure(self, player_number, situation, index):
+    if situation != 1:
+      raise ValueError('Tried playing a treasure outside the Buy Phase')
 
     card = self.cards[index]
     if card['type'] != 'treasure':
@@ -52,9 +58,11 @@ class Gamemaster:
       self.gamestate.play_card(player_number, index)
     except ValueError:
       raise ValueError('No ' + card['name'] + ' in hand!')
+    return situation # Same phase
 
-  def buy_card(self, player_number, index):
-    self._check_for_phase('buy_'+str(player_number))
+  def buy_card(self, player_number, situation, index):
+    if situation != 1:
+      raise ValueError('Tried playing a treasure outside the Buy Phase')
 
     self._check_legal_to_buy_card(player_number)
 
@@ -65,13 +73,15 @@ class Gamemaster:
 
     try:
       self.gamestate.buy_card(player_number, index)
+      return situation # Same phase
     except ValueError:
       raise ValueError('No ' + card['name'] + ' left in supply!')
 
-  def end_phase(self, verbose=False):
+  def end_phase(self, player_number, situation, verbose=False):
+    if situation not in range(3):
+      raise ValueError('Cannot end phase in a special situation!')
     current_phase = self.gamestate.phase
     next_phase = self.gamestate.get_next_phase()
-    # TODO - logic for cleanup
     self.gamestate.phase = next_phase
     if verbose:
       print('You just ended the ' + current_phase + ' phase and are now in the ' + next_phase + ' phase')
@@ -80,6 +90,7 @@ class Gamemaster:
       self.gamestate.cleanup(int(self.gamestate.phase[-1]))
       if verbose:
         print('Cleaned up')
+    return (situation + 1) % 3
 
   def determine_scores(self):
     player_1_score = sum([self.cards[index]['points'] if self.cards[index]['type'] == 'victory' else 0 for index in self.gamestate.deck_1.contents()+self.gamestate.hand_1+self.gamestate.discard_1])

@@ -5,6 +5,9 @@ phase_order = ['action_1', 'buy_1', 'cleanup_1', 'action_2', 'buy_2', 'cleanup_2
 
 class Gamestate:
   # Does not currently allow for multiple players
+  # TODO: This will *probably* need a "situation-specific"
+  # area for things like "viewed cards" once the more
+  # complex cards are included
   def __init__(
       self,
       supply,
@@ -29,14 +32,18 @@ class Gamestate:
   def __str__(self):
     return '\n'.join([
       'Supply: ' + str(self.supply),
-      'Deck 1: ' + str(self.deck_1.cards[:5]) + '...',
-      'Hand 1: ' + str(self.hand_1),
-      'Play 1: ' + str(self.play_1),
-      'Discard 1: ' + str(self.discard_1),
-      'Deck 2: ' + str(self.deck_2.cards[:5]) + '...',
-      'Hand 2: ' + str(self.hand_2),
-      'Play 2: ' + str(self.play_2),
-      'Discard 2: ' + str(self.discard_2),
+      '\t'.join([
+        'Deck 1: ' + str(self.deck_1.cards[:5]) + '...',
+        'Hand 1: ' + str(self.hand_1),
+        'Play 1: ' + str(self.play_1),
+        'Discard 1: ' + str(self.discard_1)
+      ]),
+      '\t'.join([
+        'Deck 2: ' + str(self.deck_2.cards[:5]) + '...',
+        'Hand 2: ' + str(self.hand_2),
+        'Play 2: ' + str(self.play_2),
+        'Discard 2: ' + str(self.discard_2)
+      ]),
       'Phase: ' + str(self.phase)
     ])
 
@@ -97,9 +104,12 @@ class Gamestate:
   def get_index_of_current_phase(self):
     return phase_order.index(self.phase)
 
-  def serialize_for_player(self, player_number):
+  def serialize(self, player_number, situation):
     if player_number not in [1, 2]:
       raise ValueError("Haven't done that yet")
+
+    if situation not in range(3):
+      raise ValueError('Don\'t know how to serialize for that situation (' + str(situation) + ') yet')
 
     number_of_cards = len(self.supply)
 

@@ -32,11 +32,8 @@ class RandomStrategy:
         buys_remaining = self._determine_buys_remaining(gamestate)
         if buys_remaining > 0:
           coins = self._determine_coins_available(gamestate)
-          print('DEBUG - coins is ' + str(coins))
           spent_so_far_this_turn = self._determine_spent_so_far_this_turn(gamestate)
-          print('DEBUG - spent so far this round is ' + str(spent_so_far_this_turn))
           buy_targets = self._pick_affordable_buy_targets(coins-spent_so_far_this_turn, gamestate)
-          print('DEBUG - buy_targets is ' + str(buy_targets))
           if buy_targets:
             return ('buy_card', [random.choice(buy_targets)])
 

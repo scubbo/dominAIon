@@ -12,17 +12,19 @@ class Gamerunner:
     run_iteration = self.make_directory_for_persistence()
 
     current_player = 1
+    situation = 0
     # TODO - technically, the game only ends at the end of the turn in which this becomes true, not immediately.
     while not self.has_game_ended():
       # Currently only supports two players
-      gamestate_view, number_of_cards = self.gamestate.serialize_for_player(current_player)
+      gamestate_view, number_of_cards = self.gamestate.serialize(current_player, situation)
       proposed_action = getattr(self, 'strategy_'+str(current_player)).determine_action(gamestate_view, number_of_cards)
 
       attempts = 0
       while attempts < 3:
         try:
-          print('With gamestate ' + str(self.gamestate) + '\nPlayer ' + str(current_player) + ' proposed ' + str(proposed_action))
-          getattr(self.gamemaster, proposed_action[0])(current_player, *proposed_action[1])
+          print('With gamestate ' + str(self.gamestate) + '\nSituation: ' + str(situation) + '\nPlayer ' + str(current_player) + ' proposed ' + str(proposed_action))
+          input('>>')
+          situation = getattr(self.gamemaster, proposed_action[0])(current_player, situation, *proposed_action[1])
           break
         except Exception as e:
           with open('runs/run_' + str(run_iteration) + '/failed_actions.txt', 'a') as f:
@@ -30,11 +32,16 @@ class Gamerunner:
           attempts += 1
       else:
         print('Strategy could not determine a legal move from gamestate ' + str(self.gamestate) + ' - aborting')
-        raise Error()
+        raise Exception()
 
       with open('runs/run_' + str(run_iteration) + '/actions_' + str(current_player) + '.txt', 'a') as f:
         f.write(str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action) + '\n')
 
+      # TODO: once we get more complex and add reaction cards,
+      # or choices that can be made on other players' turns,
+      # this will need to be more nuanced and include both
+      # "active player" (the player making the decision) and
+      # "current player" (the player whose turn it is)
       if self.gamestate.phase.startswith('action'):
         current_player = int(self.gamestate.phase[-1])
 

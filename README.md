@@ -6,16 +6,17 @@ Uses ML to train strategies to play Dominion.
 
 The Gamerunner is responsible for running the game. It:
 * Handles filesystem interactions for persisting moves and W/L.
-* Queries the Gamestate for a GamestateView, and passes that to the relevant Strategy.
+* Tracks the `situation` (see below) that the game is in.
+* Queries the Gamestate for a `state_vector`, and passes that and the `situation` to the relevant Strategy.
 * Receives a move-selection vector from the Strategy, and, for each proposed move in descending order of selection-strength:
  * Translates the move into a command to Gamemaster
  * Executes the command on the Gamemaster
  * If the move was illegal (i.e. if the Gamemaster throws an Exception), record the move as illegal and try again with the next-most-strongly-selected move
   * (Note that there is no need for a termination condition, because there is always a legal move - usually, "end the phase")
- * If the move was legal, record it, then loop again (query Gamestate for a GamestateView, pass to stragety, etc.)
+ * If the move was legal, record it, note from the Gamemaster what `situation` we are now in, then loop again (query Gamestate for a `state_vector`, pass to strategy, etc.)
 * Detects when the game should end, totals the scores, and determines the winner.
 
-The Gamemaster is responsible for checking move legality against game rules, and executing legal moves.
+The Gamemaster is responsible for checking move legality against game rules, and executing legal moves (usually by calling operations on the Gamestate). When executing a legal move, it returns to the Gamerunner what the new `situation` is. It encodes the majority of Game Rule logic.
 
 The Gamestate tracks the state of the game. It is also responsible for providing "views" onto the Gamestate, depending on the situation. For instance, a player should never know what is in the opponent's hand, nor the exact order of their deck. Additionally, in some situations (like during the resolution of some Action cards), cards are in unusual zones (such as "revealed but not in hand" or "drawn - but need to be tracked for possible immediate discard"), so the Gamestate should represent those as differently formed vectors.
 
