@@ -1,16 +1,25 @@
 import os
+import json
 
 
 class Gamerunner:
-    def __init__(self, strategy_1, strategy_2, gamemaster):
+    def __init__(self, strategy_1, strategy_2, gamemaster, wait_for_input=False):
         self.strategy_1 = strategy_1
         self.strategy_2 = strategy_2
         self.gamemaster = gamemaster
         self.gamestate = gamemaster.gamestate  # todo - for proper OO-ness, should probably make this an argument of methods of gamemaster
+        self.wait_for_input = wait_for_input
 
     def main(self):
 
-        run_iteration = self.make_directory_for_persistence()
+        self.make_directory_for_persistence()
+        game_record = {
+            'strat_1_id': self.strategy_1.id,
+            'strat_2_id': self.strategy_2.id,
+            'moves': [],
+            'failed_moves': []
+        }
+        # TODO - Need to record the universe-of-cards that this was run on
 
         current_player = 1
         situation = 0
@@ -26,21 +35,21 @@ class Gamerunner:
                 try:
                     print('With gamestate ' + str(self.gamestate) + '\nSituation: ' + str(
                         situation) + '\nPlayer ' + str(current_player) + ' proposed ' + str(proposed_action))
-                    input('>>')
+                    if self.wait_for_input:
+                        input('>>')
                     situation = getattr(self.gamemaster, proposed_action[0])(current_player, situation,
                                                                              *proposed_action[1])
                     break
                 except Exception as e:
-                    with open('runs/run_' + str(run_iteration) + '/failed_actions.txt', 'a') as f:
-                        f.write(str(current_player) + ':' + self.gamestate.to_json() + '->' + str(
-                            proposed_action) + '\n')  # For now this works, but might need custom serialization logic if actions get more complex
+                    game_record['failed_moves'].append(
+                        str(current_player) + ':' + self.gamestate.to_json() + '->' + str(
+                            proposed_action))  # For now this works, but might need custom serialization logic if actions get more complex
                     attempts += 1
             else:
                 print('Strategy could not determine a legal move from gamestate ' + str(self.gamestate) + ' - aborting')
                 raise Exception()
 
-            with open('runs/run_' + str(run_iteration) + '/actions_' + str(current_player) + '.txt', 'a') as f:
-                f.write(str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action) + '\n')
+            game_record['moves'].append(str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action))
 
             # TODO: once we get more complex and add reaction cards,
             # or choices that can be made on other players' turns,
@@ -50,10 +59,21 @@ class Gamerunner:
             if self.gamestate.phase.startswith('action'):
                 current_player = int(self.gamestate.phase[-1])
 
+        # Note the lack of a `try-finally` wrapping this `while` loop. Let's not record moved from a game
+        # that didn't end, because then there's no way to tell which were "good" ones.
+
         player_1_score, player_2_score = self.gamemaster.determine_scores()
         print('Score: ' + str(player_1_score) + ':' + str(player_2_score))
-        with open('runs/run_' + str(run_iteration) + '/final_score.txt', 'a') as f:
-            f.write(str(player_1_score) + ':' + str(player_2_score))
+        game_record['score'] = str(player_1_score) + ':' + str(player_2_score)
+
+        runs = os.listdir('runs')
+        if not runs:
+            current_iteration = 1
+        else:
+            current_iteration = max(map(lambda x: int(x[4:]), runs)) + 1
+
+        with open('runs/run_' + str(current_iteration), 'a') as f:
+            f.write(json.dumps(game_record))
 
     def has_game_ended(self):
         return len([pile for pile in self.gamestate.supply if pile == 0]) >= 3 or self.gamestate.supply[5] == 0
@@ -62,17 +82,14 @@ class Gamerunner:
         if 'runs' not in os.listdir('.'):
             os.mkdir('runs')
 
-        runs = os.listdir('runs')
-        if not runs:
-            current_iteration = 1
-        else:
-            current_iteration = max(map(lambda x: int(x[4:]), runs)) + 1
-
-        os.mkdir('runs/run_' + str(current_iteration))
-        return current_iteration
-
 
 def make_basic():
+    return Gamerunner(*_make_basic_underlying(), True)
+
+def make_basic_automated():
+    return Gamerunner(*_make_basic_underlying())
+
+def _make_basic_underlying():
     from cards import cards
     from strategies.randomStrategy import RandomStrategy
     from gamemaster import Gamemaster
@@ -80,4 +97,4 @@ def make_basic():
     strat_1 = RandomStrategy(cards, 1)
     strat_2 = RandomStrategy(cards, 2)
     gamemaster = Gamemaster(cards)
-    return Gamerunner(strat_1, strat_2, gamemaster)
+    return strat_1, strat_2, gamemaster

@@ -8,9 +8,17 @@ class RandomStrategy:
     # actions (a true RNN strategy wouldn't do so,
     # but only because it would learn to avoid
     # illegal actions over time)
+    #
+    # id is meaningless for a RandomStrategy,
+    # since it is memoryless and so there is
+    # no need to refer back to its earlier
+    # actions (in a way which *would* be
+    # necessary for an RNN, to be sure to train
+    # it only on its own moves)
     def __init__(self, cards, player_number):
         self.cards = cards
         self.player_number = player_number
+        self.id = 'RandomStrategy'
 
     def determine_action(self, gamestate_as_vector, number_of_cards):
         gamestate = self.parse_gamestate(gamestate_as_vector, number_of_cards)

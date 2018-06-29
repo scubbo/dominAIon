@@ -127,10 +127,6 @@ class Gamemaster:
             response.append(Deck([copper_index] * 7 + [estate_index] * 3))
         return response
 
-    def _check_for_phase(self, phase):
-        if self.gamestate.phase != phase:
-            raise ValueError('Now is not the time to use that')
-
     def _check_legal_to_buy_card(self, player_number):
         cards_played = [self.cards[index] for index in getattr(self.gamestate, 'play_' + str(player_number))]
         extra_buys = sum(
