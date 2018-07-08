@@ -1,13 +1,10 @@
 #!python3 -i
 from cards import cards
 from gamemaster import Gamemaster
+from strategies.randomStrategy import RandomStrategy
 
 GM = Gamemaster(cards)
 
-import sys
-
-sys.path.append('strategies')
-from randomStrategy import RandomStrategy
 
 strat = RandomStrategy(cards, 1)
 

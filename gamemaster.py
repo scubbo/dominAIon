@@ -16,6 +16,9 @@ class Gamemaster:
             if card['name'] == 'Estate':
                 estate_index = index
 
+        if copper_index is None or estate_index is None:
+            raise Exception('At least one of Copper or Estate was not found in `cards`')
+
         self.gamestate = self.build_initial_gamestate(copper_index, estate_index)
 
     def build_initial_gamestate(self, copper_index, estate_index):
@@ -76,8 +79,10 @@ class Gamemaster:
             self.gamestate.buy_card(player_number, index)
             return situation  # Same phase
         except ValueError:
-            raise ValueError('No ' + card['name'] + ' left in supply!')
+            raise ValueError('No ' + self.cards['name'] + ' left in supply!')
 
+    # player_number is required as part of the "interface" of game actions,
+    # even though it's not needed in this specific action
     def end_phase(self, player_number, situation, verbose=False):
         if situation not in range(3):
             raise ValueError('Cannot end phase in a special situation!')
@@ -121,7 +126,8 @@ class Gamemaster:
                 supply.append(10)
         return supply
 
-    def _make_decks(self, copper_index, estate_index, number_of_decks=2):
+    @staticmethod
+    def _make_decks(copper_index, estate_index, number_of_decks=2):
         response = []
         for i in range(number_of_decks):
             response.append(Deck([copper_index] * 7 + [estate_index] * 3))

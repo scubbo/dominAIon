@@ -28,7 +28,7 @@ class RandomStrategy:
                 actions_remaining = self._determine_actions_remaining(gamestate)
                 actions_in_hand = [index for index in gamestate['hand_1'] if self.cards[index]['type'] == 'action']
                 if actions_remaining > 0 and actions_in_hand:
-                    return ('play_action', [random.choice(actions_in_hand)])
+                    return 'play_action', [random.choice(actions_in_hand)]
 
         if gamestate['phase'] == 1:
             if random.random() < 0.9:
@@ -36,7 +36,7 @@ class RandomStrategy:
                 # in the first sets of cards that I'll be adding which require treasure in-hand at the point of buying
                 treasure_in_hand = [index for index in gamestate['hand_1'] if self.cards[index]['type'] == 'treasure']
                 if treasure_in_hand:
-                    return ('play_treasure', [random.choice(treasure_in_hand)])
+                    return 'play_treasure', [random.choice(treasure_in_hand)]
 
                 buys_remaining = self._determine_buys_remaining(gamestate)
                 if buys_remaining > 0:
@@ -44,23 +44,22 @@ class RandomStrategy:
                     spent_so_far_this_turn = self._determine_spent_so_far_this_turn(gamestate)
                     buy_targets = self._pick_affordable_buy_targets(coins - spent_so_far_this_turn, gamestate)
                     if buy_targets:
-                        return ('buy_card', [random.choice(buy_targets)])
+                        return 'buy_card', [random.choice(buy_targets)]
 
-        return ('end_phase', [])
+        return 'end_phase', []
 
     # TODO - arguably, this could belong in gamestate,
     # but ideally nothing else but RandomStrategy should
     # ever be using this (because RNN-strats should just be
     # operating on the bare vector)
     def parse_gamestate(self, vector, number):
-        returnObj = {}
-        returnObj['supply'] = vector[:number]
-        returnObj['deck_1'] = self._unvectorize(vector[number:number * 2])
-        returnObj['hand_1'] = self._unvectorize(vector[number * 2:number * 3])
-        returnObj['play_1'] = self._unvectorize(vector[number * 3:number * 4])
-        returnObj['bought_so_far_this_turn'] = self._unvectorize(vector[-(number + 1):-1])
-        returnObj['phase'] = vector[-1]
-        return returnObj
+        return {
+            'supply': vector[:number],
+            'deck_1': self._unvectorize(vector[number:number * 2]),
+            'hand_1': self._unvectorize(vector[number * 2:number * 3]),
+            'play_1': self._unvectorize(vector[number * 3:number * 4]),
+            'bought_so_far_this_turn': self._unvectorize(vector[-(number + 1):-1]),
+            'phase': vector[-1]}
 
     # Reads a vector of length equal to number of cards,
     # wherein the i-th value is how many of the i-th card
@@ -68,7 +67,8 @@ class RandomStrategy:
     # and outputs a vector representing the subset
     #
     # e.g. [0, 3, 1, 2, 0, 0, 1, 0, 1, 0, ...] => [1,2,1,6,8,3,1,3]
-    def _unvectorize(self, vector):
+    @staticmethod
+    def _unvectorize(vector):
         response = []
         for index in range(len(vector)):
             response += [index] * vector[index]

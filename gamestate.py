@@ -87,12 +87,12 @@ class Gamestate:
             return phase_order[0]
 
     def cleanup(self, player_number):
-        while (True):
+        while True:
             try:
                 getattr(self, 'discard_' + str(player_number)).append(getattr(self, 'play_' + str(player_number)).pop())
             except IndexError:
                 break
-        while (True):
+        while True:
             try:
                 getattr(self, 'discard_' + str(player_number)).append(getattr(self, 'hand_' + str(player_number)).pop())
             except IndexError:
@@ -147,7 +147,8 @@ class Gamestate:
     # are in the subset
     #
     # e.g. [1,2,1,6,8,3,1,3] => [0, 3, 1, 2, 0, 0, 1, 0, 1, 0, ...]
-    def _vectorize_subset(self, subset, length):
+    @staticmethod
+    def _vectorize_subset(subset, length):
         vector = [0] * length
         for i in subset:
             vector[i] += 1

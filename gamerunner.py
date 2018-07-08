@@ -7,7 +7,8 @@ class Gamerunner:
         self.strategy_1 = strategy_1
         self.strategy_2 = strategy_2
         self.gamemaster = gamemaster
-        self.gamestate = gamemaster.gamestate  # todo - for proper OO-ness, should probably make this an argument of methods of gamemaster
+        # todo - for proper OO-ness, should probably make this an argument of methods of gamemaster
+        self.gamestate = gamemaster.gamestate
         self.wait_for_input = wait_for_input
 
     def main(self):
@@ -40,16 +41,18 @@ class Gamerunner:
                     situation = getattr(self.gamemaster, proposed_action[0])(current_player, situation,
                                                                              *proposed_action[1])
                     break
-                except Exception as e:
+                except Exception:
                     game_record['failed_moves'].append(
                         str(current_player) + ':' + self.gamestate.to_json() + '->' + str(
-                            proposed_action))  # For now this works, but might need custom serialization logic if actions get more complex
+                            # For now this works, but might need custom serialization logic if actions get more complex
+                            proposed_action))
                     attempts += 1
             else:
                 print('Strategy could not determine a legal move from gamestate ' + str(self.gamestate) + ' - aborting')
                 raise Exception()
 
-            game_record['moves'].append(str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action))
+            game_record['moves'].append(
+                str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action))
 
             # TODO: once we get more complex and add reaction cards,
             # or choices that can be made on other players' turns,
@@ -78,7 +81,8 @@ class Gamerunner:
     def has_game_ended(self):
         return len([pile for pile in self.gamestate.supply if pile == 0]) >= 3 or self.gamestate.supply[5] == 0
 
-    def make_directory_for_persistence(self):
+    @staticmethod
+    def make_directory_for_persistence():
         if 'runs' not in os.listdir('.'):
             os.mkdir('runs')
 
@@ -86,8 +90,10 @@ class Gamerunner:
 def make_basic():
     return Gamerunner(*_make_basic_underlying(), True)
 
+
 def make_basic_automated():
     return Gamerunner(*_make_basic_underlying())
+
 
 def _make_basic_underlying():
     from cards import cards
