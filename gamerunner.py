@@ -52,8 +52,12 @@ class Gamerunner:
                 raise Exception()
 
             game_record['moves'].append(
-                str(current_player) + ':' + self.gamestate.to_json() + '->' + str(proposed_action))
-
+                {
+                    'player': current_player,
+                    'gamestate_view': gamestate_view,
+                    'proposed_action': proposed_action
+                }
+            )
             # TODO: once we get more complex and add reaction cards,
             # or choices that can be made on other players' turns,
             # this will need to be more nuanced and include both

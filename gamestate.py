@@ -127,6 +127,7 @@ class Gamestate:
             vector += self._vectorize_subset(self.trash, number_of_cards)
             vector += self._vectorize_subset(self.bought_so_far_this_turn, number_of_cards)
             vector += [self.get_index_of_current_phase()]
+            vector += [situation]
         elif player_number == 2:
             vector += self._vectorize_subset(self.deck_2.contents(), number_of_cards)
             vector += self._vectorize_subset(self.hand_2, number_of_cards)
@@ -139,6 +140,7 @@ class Gamestate:
             vector += self._vectorize_subset(self.bought_so_far_this_turn, number_of_cards)
             # Cycle this offset by 3 because, as far as player 2 is concerned, their action phase *is* the first one
             vector += [(self.get_index_of_current_phase() + 3) % 6]
+            vector += [situation]
 
         return vector, number_of_cards
 

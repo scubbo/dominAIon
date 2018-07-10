@@ -22,7 +22,7 @@ class RandomStrategy:
 
     def determine_action(self, gamestate_as_vector, number_of_cards):
         gamestate = self.parse_gamestate(gamestate_as_vector, number_of_cards)
-        print('Strategy_1\'s parsed gamestate view is ' + str(gamestate))
+        print('Strategy_' + str(self.player_number) + '\'s parsed gamestate view is ' + str(gamestate))
         if gamestate['phase'] == 0:
             if random.random() < 0.8:
                 actions_remaining = self._determine_actions_remaining(gamestate)
@@ -58,8 +58,9 @@ class RandomStrategy:
             'deck_1': self._unvectorize(vector[number:number * 2]),
             'hand_1': self._unvectorize(vector[number * 2:number * 3]),
             'play_1': self._unvectorize(vector[number * 3:number * 4]),
-            'bought_so_far_this_turn': self._unvectorize(vector[-(number + 1):-1]),
-            'phase': vector[-1]}
+            'bought_so_far_this_turn': self._unvectorize(vector[-(number + 2):-2]),
+            'phase': vector[-2],
+            'situation': vector[-1]}
 
     # Reads a vector of length equal to number of cards,
     # wherein the i-th value is how many of the i-th card

@@ -1,11 +1,11 @@
-#TODO
+# TODO
 
-* Record Gamestates (in persistence) vectorized, rather than JSON
- * (Look in the removed "interpreter" class)
- * (prerequisite for the above) change RandomStrategy to accept Vectorized state
 * Include "setup/universe" in persistence - a (hashed?) representation of the set of known cards&sitations that the game was run with.
  * This is necessary to ensure that RNN training only happens on similar cases
 
 # DONE
 
 * Make cleanups that PyCharm recommends
+* Record Gamestates (in persistence) vectorized, rather than JSON
+ * (Look in the removed "interpreter" class)
+ * (prerequisite for the above) change RandomStrategy to accept Vectorized state
