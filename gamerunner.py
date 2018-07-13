@@ -28,25 +28,35 @@ class Gamerunner:
         while not self.has_game_ended():
             # Currently only supports two players
             gamestate_view, number_of_cards = self.gamestate.serialize(current_player, situation)
-            proposed_action = getattr(self, 'strategy_' + str(current_player)).determine_action(gamestate_view,
+            proposed_actions_as_vector = getattr(self, 'strategy_' + str(current_player)).determine_action(
+                                                                                                gamestate_view,
                                                                                                 number_of_cards)
+            proposed_actions = self._interpret_vectorized_action_proposals(situation, proposed_actions_as_vector)
 
-            attempts = 0
-            while attempts < 3:
+            attempt = 0
+            while attempt < 3:  # TODO - consider increasing this when we go to truly randomized RNNs!
                 try:
+                    # We track original_index since it will be used in training RNNs -
+                    # it is the "outcome" that the RNN generated
+                    proposed_action, original_index, args = proposed_actions[attempt]
                     print('With gamestate ' + str(self.gamestate) + '\nSituation: ' + str(
-                        situation) + '\nPlayer ' + str(current_player) + ' proposed ' + str(proposed_action))
+                        situation) + '\nPlayer ' + str(current_player) + ' proposed ' + str(proposed_action) + '(' +
+                        str(args) + ')')
                     if self.wait_for_input:
                         input('>>')
-                    situation = getattr(self.gamemaster, proposed_action[0])(current_player, situation,
-                                                                             *proposed_action[1])
+                    situation = proposed_action(current_player, situation, *args)
                     break
-                except Exception:
+                except Exception as e:
+                    print(e)
                     game_record['failed_moves'].append(
-                        str(current_player) + ':' + self.gamestate.to_json() + '->' + str(
-                            # For now this works, but might need custom serialization logic if actions get more complex
-                            proposed_action))
-                    attempts += 1
+                        {
+                            'player': current_player,
+                            'gamestate_view': gamestate_view,
+                            'proposed_action_human_readable_name': str(proposed_action),
+                            'proposed_action_human_readable_args': args,
+                            'proposed_action_index': original_index
+                        })
+                    attempt += 1
             else:
                 print('Strategy could not determine a legal move from gamestate ' + str(self.gamestate) + ' - aborting')
                 raise Exception()
@@ -55,7 +65,9 @@ class Gamerunner:
                 {
                     'player': current_player,
                     'gamestate_view': gamestate_view,
-                    'proposed_action': proposed_action
+                    'action_human_readable_name': str(proposed_action),
+                    'action_human_readable_args': args,
+                    'action_index': original_index
                 }
             )
             # TODO: once we get more complex and add reaction cards,
@@ -89,6 +101,38 @@ class Gamerunner:
     def make_directory_for_persistence():
         if 'runs' not in os.listdir('.'):
             os.mkdir('runs')
+
+    # TODO - as situations get more numerous, this should probably be put into situation configuration
+    # in fact, the lambda inside the map is the perfect entity to be extracted!
+    def _interpret_vectorized_action_proposals(self, situation, proposed_actions):
+        if situation == 0:
+            ordered_indices = [x[0] for x in sorted(enumerate(proposed_actions), key=lambda x: x[1], reverse=True)]
+            return list(map(
+                lambda index:
+                    (self.gamemaster.play_action, index, [index])
+                    if index != len(proposed_actions)-1
+                    else (self.gamemaster.end_phase, len(proposed_actions)-1, []),
+                ordered_indices
+            ))
+        if situation == 1:
+            ordered_indices = [x[0] for x in sorted(enumerate(proposed_actions), key=lambda x: x[1], reverse=True)]
+            return self._parse_buy_phase_vectored_actions_into_methods(ordered_indices)
+        if situation == 2:
+            return [(self.gamemaster.end_phase, 0, [])]
+        raise Exception('Don\'t know how to do that yet!')
+
+    def _parse_buy_phase_vectored_actions_into_methods(self, proposed_action_indices):
+        output_list = []
+        maximal_treasure_index = int((len(proposed_action_indices)-1)/2)-1
+        end_phase_index = len(proposed_action_indices)-1
+        for index in proposed_action_indices:
+            if index <= maximal_treasure_index:
+                output_list.append((self.gamemaster.play_treasure, index, [index]))
+            elif index == end_phase_index:
+                output_list.append((self.gamemaster.end_phase, end_phase_index, []))
+            else:
+                output_list.append((self.gamemaster.buy_card, index, [index-(maximal_treasure_index+1)]))
+        return output_list
 
 
 def make_basic():

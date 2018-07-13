@@ -2,6 +2,9 @@
 
 * Include "setup/universe" in persistence - a (hashed?) representation of the set of known cards&sitations that the game was run with.
  * This is necessary to ensure that RNN training only happens on similar cases
+* Don't just pick from proposed actions in order of confidence - randomize based on it!
+* Get a better strategy for printing human-readable name of methods in serialized form
+* Move `_interpret_vectorized_action_proposals` into situations configuration
 
 # DONE
 
