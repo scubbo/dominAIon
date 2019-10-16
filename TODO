@@ -1,10 +1,18 @@
 # TODO
 
+** BLOCKER **
+Something is screwy with how indices of actions are being persisted. "Action Index=11" should give [0,0,0,0,0,0,0,0,0,0,1],
+but there appears to be inconsistent implementation between Action and Buy phase - sometimes off-by-one, sometimes not.
+Check in randomStrategy.
+
 * Include "setup/universe" in persistence - a (hashed?) representation of the set of known cards&sitations that the game was run with.
  * This is necessary to ensure that RNN training only happens on similar cases
 * Don't just pick from proposed actions in order of confidence - randomize based on it!
 * Get a better strategy for printing human-readable name of methods in serialized form
 * Move `_interpret_vectorized_action_proposals` into situations configuration
+* Change randomStrategy's "phase" determination to work off of situations
+* Decide whether we'll always keep "number_of_cards" at 10, or allow it to vary - and update gamestate, randomStrategy, etc. accordingly
+ * (Note that makeTrainingData assumes 10, since there's not currently an easy way to pass it back unless I persist number_of_cards into persisted game)
 
 # DONE
 
